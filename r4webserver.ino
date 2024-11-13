@@ -58,7 +58,6 @@ long postmessTime = 0;  //微信推送计时
 long tempTime = 0;      //温度计时
 
 HX711 scale;
-int hxuistartnum = 0;
 
 void setup() {
   char ssid[] = "appdoor3";
@@ -162,7 +161,7 @@ void qrcode() {
     isip = true;
     QRcode qrcode;
     qrcode.init();
-    qrcode.create((String("http://") + WiFi.localIP().toString().c_str() + String(":80/application/index.html")).c_str(), 5, 12);
+    qrcode.create((String("http://") + WiFi.localIP().toString() + String(":80/application/index.html")).c_str(), 5, 12);
   }
 }
 
@@ -396,111 +395,91 @@ void hx711Step() {
 
 void hx711() {
  // matrix_5(frame);
-  if (scale.wait_ready_retry(50)) {
-    long reading = scale.read();
-    int z = (int)scale.get_units();
-    Paint_DrawString_EN(110, 150, (String("weight:") + z + "," + hxuistartnum).c_str(), &Font20, WHITE, RED);
-    if (z > 100) {
-      hxuistartnum++;
-    } else {
-      hxuistartnum = 0;
-    }
-  }
-  if (hxuistartnum > 1) {
+  if (checkHx711JoinHome()) {
+
     Paint_Clear(WHITE);
     Paint_DrawRectangle(0, 0, LCD_HEIGHT, 60, YELLOW, DOT_PIXEL_DFT, DRAW_FILL_FULL);
+
     int selectindex = 0;
     int keycount = 0;
     const char* areas[2] = { "A1", "B2" };
     const char* area = areas[selectindex];
     int n = 4;  //sizeof(areas)/sizeof(areas[0]);
     while (true) {
-      if (scale.wait_ready_retry(250)) {
-        int z = (int)scale.get_units();
-        Serial.println(keycount);
-        if (z > 50) {
-          keycount++;
-        } else {
-          if (0 < keycount && keycount < n) {
-            selectindex++;
-            if (selectindex >= 2) {
-              selectindex = 0;
-            }
-          } else if (n <= keycount) {
-            area = areas[selectindex];
-            break;
-          }
-          keycount = 0;
-        }
-        Paint_DrawString_EN(20, 70, (String("") + areas[0] + (selectindex == 0 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
-        Paint_DrawString_EN(20, 100, (String("") + areas[1] + (selectindex == 1 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
-        Paint_DrawString_EN(20, 20, areas[selectindex], &Font20, YELLOW, BLACK);
+      if(hx711OnKeyevent(250,50)){
+        keycount++;
+        continue;
       }
+      if( 0 < keycount && keycount < n){
+        selectindex++;
+        if (selectindex >= 2) {
+          selectindex = 0;
+        }
+      }else if( n <= keycount ){
+        area = areas[selectindex];
+        break;
+      }
+      keycount =0;
+      Paint_DrawString_EN(20, 70, (String("") + areas[0] + (selectindex == 0 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
+      Paint_DrawString_EN(20, 100, (String("") + areas[1] + (selectindex == 1 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
+      Paint_DrawString_EN(20, 20, areas[selectindex], &Font20, YELLOW, BLACK);
     }
+    //去皮
     Paint_Clear(WHITE);
-
-    while (scale.wait_ready_retry(250)) {
-      int z = (int)scale.get_units();
-      if (z == 0) {
-        hxuistartnum++;
-        if (hxuistartnum > 12) {
-          break;
-        }
-      }
-      scale.tare();
+    if( weightValue()<3 ){
+      Paint_DrawString_EN(20,20,"preless peel",&Font20,WHITE,BLACK);
     }
-    scale.tare();
+    while( true){
+      if(3<weightValue()){
+        Paint_DrawString_EN(20,20,"on peel........",&Font20,WHITE,BLACK);
+        scale.tare();
+        break;
+      }
+    }
+    
     Paint_DrawRectangle(0, 0, LCD_HEIGHT, 21, YELLOW, DOT_PIXEL_DFT, DRAW_FILL_FULL);
-    hxuistartnum = 0;
-    long update_ui_time = 0;
-    int zlnum = 0;
-    bool zlnumUpdate = false;
-    int zlzUdpate = 0;
-    int zlz = 0;
-    int zlcz = 0;
-    int zlmaxz = 0;
-    int zlmaxz2 = 0;
-    float maxz = 0;
-    while (hxuistartnum < 40) {
-      if (scale.wait_ready_retry(250)) {
-        long reading = scale.read();
-        float z = scale.get_units();
-        if (abs(z - zlz) > 2.5) {
-          if (z != zlz) {
-            zlz = z;
-            zlcz = zlz;
-            zlzUdpate = 0;
-            zlnumUpdate = true;
-            zlmaxz = max(zlz, zlmaxz);
-          }
-        }
-        if (zlcz == zlz) {
-          zlzUdpate++;
-        }
-        if (zlzUdpate > 3 && zlnumUpdate) {
-          zlnumUpdate = false;
-          zlzUdpate = 0;
-          if (zlmaxz2 < zlmaxz) {
-            zlnum++;
-            zlmaxz2 = zlmaxz;
-          }
-        }
-        if (zlz <= 1.25) {
-          hxuistartnum++;
-        }
-        maxz = max(maxz, z);
-        if ((millis() - update_ui_time) > 500) {
-          update_ui_time = millis();
-          Paint_DrawString_EN(0, 0, (String("will exit:") + (hxuistartnum * 0.250) + "s").c_str(), &Font20, YELLOW, BLACK);
-          Paint_DrawString_EN(50, 40, (String("weight:") + z).c_str(), &Font20, WHITE, BLACK);
-          Paint_DrawString_EN(50, 70, (String("num:") + zlnum).c_str(), &Font20, WHITE, RED);
-          Paint_DrawString_EN(50, 90, (String("area:") + area).c_str(), &Font20, WHITE, RED);
-        }
+
+    long update_ui_time = millis();
+    float z;
+    int z2 =0;
+    bool lop=true;
+    while(lop){
+      z = weightValue();
+      z2  = max(z2,z);
+      Paint_DrawString_EN(50, 40, (String("weight:") + z).c_str(), &Font20, WHITE, BLACK);
+      Paint_DrawString_EN(50, 70, (String("area:") + area).c_str(), &Font20, WHITE, RED);
+      if(2<z2 && z <=2){
+        lop=false;
       }
     }
-    hxuistartnum = 0;
-    isip = false;
-    if (maxz != 0) {
+
+    n=4;
+    selectindex=0;
+    int maxselect=2;
+    const char* formats[2] = { "mixedGrains", "Applet" };
+    const char* format = formats[selectindex];
+    while (true) {
+      if(hx711OnKeyevent(250,50)){
+        keycount++;
+        continue;
+      }
+      if( 0 < keycount && keycount < n){
+        selectindex++;
+        if (selectindex >= maxselect) {
+          selectindex = 0;
+        }
+      }else if( n <= keycount ){
+        format = formats[selectindex];
+        break;
+      }
+      keycount =0;
+      Paint_DrawString_EN(20, 70, (String("") + formats[0] + (selectindex == 0 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
+      Paint_DrawString_EN(20, 100, (String("") + formats[1] + (selectindex == 1 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
+      Paint_DrawString_EN(20, 20, formats[selectindex], &Font20, YELLOW, BLACK);
+    }    
+
+
+    if (z2 != 0) {
       //保存
       long time = vm_date_util();
       long day = time / 86400;
@@ -508,11 +487,9 @@ void hx711() {
       file.open(path.c_str(), O_CREAT | O_APPEND | O_WRITE);
       file.print(area);
       file.print(",");
-      file.print(maxz);
+      file.print(z2);
       file.print(",");
-      file.print(zlnum);
-      file.print(",");
-      file.print("0");
+      file.print(format);
       file.println();
       file.close();
       sday = day;
@@ -523,6 +500,36 @@ void hx711() {
     Paint_Clear(WHITE);
   }
   //matrix_clear();
+}
+
+//判断是否进入称重状态，则停止其他传感器事件;
+bool checkHx711JoinHome(){
+ int hxuistartnum= 0;
+ if (scale.wait_ready_retry(50)) {
+    long reading = scale.read();
+    int z = (int)scale.get_units();
+    Paint_DrawString_EN(110, 150, (String("weight:") + z + "," + hxuistartnum).c_str(), &Font20, WHITE, RED);
+    if (z > 100) {
+      hxuistartnum++;
+    } else {
+      hxuistartnum = 0;
+    }
+  }
+  return hxuistartnum>1;
+}
+bool hx711OnKeyevent(int delayms,int weightKeyValue){
+  if(scale.wait_ready_retry(delayms)){
+    int z = scale.get_units();
+    Serial.println(z);
+    if(z >weightKeyValue){
+      return true;
+    }
+  }
+  return false;
+}
+float weightValue(){
+  scale.wait_ready_retry(250);
+  return scale.get_units();
 }
 
 
