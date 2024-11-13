@@ -498,6 +498,8 @@ void hx711() {
       Serial.println((String("写入一条数据") + path).c_str());
     }
     Paint_Clear(WHITE);
+
+    isip=false;
   }
   //matrix_clear();
 }
