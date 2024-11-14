@@ -406,7 +406,10 @@ void hx711() {
     const char* area = areas[selectindex];
     int n = 4;  //sizeof(areas)/sizeof(areas[0]);
     while (true) {
-      if(hx711OnKeyevent(250,50)){
+      Paint_DrawString_EN(20, 70, (String("") + areas[0] + (selectindex == 0 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
+      Paint_DrawString_EN(20, 100, (String("") + areas[1] + (selectindex == 1 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
+      Paint_DrawString_EN(20, 20, areas[selectindex], &Font20, YELLOW, BLACK);
+      if(weightOnKeyevent(250,50)){
         keycount++;
         continue;
       }
@@ -420,9 +423,6 @@ void hx711() {
         break;
       }
       keycount =0;
-      Paint_DrawString_EN(20, 70, (String("") + areas[0] + (selectindex == 0 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
-      Paint_DrawString_EN(20, 100, (String("") + areas[1] + (selectindex == 1 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
-      Paint_DrawString_EN(20, 20, areas[selectindex], &Font20, YELLOW, BLACK);
     }
     //去皮
     Paint_Clear(WHITE);
@@ -436,7 +436,8 @@ void hx711() {
         break;
       }
     }
-    
+
+    Paint_Clear(WHITE);
     Paint_DrawRectangle(0, 0, LCD_HEIGHT, 21, YELLOW, DOT_PIXEL_DFT, DRAW_FILL_FULL);
 
     long update_ui_time = millis();
@@ -453,13 +454,20 @@ void hx711() {
       }
     }
 
+    scale.tare();
+    Paint_Clear(WHITE);
+    Paint_DrawRectangle(0, 0, LCD_HEIGHT, 60, YELLOW, DOT_PIXEL_DFT, DRAW_FILL_FULL);
     n=4;
+    keycount=0;
     selectindex=0;
     int maxselect=2;
     const char* formats[2] = { "mixedGrains", "Applet" };
     const char* format = formats[selectindex];
     while (true) {
-      if(hx711OnKeyevent(250,50)){
+      Paint_DrawString_EN(20, 70, (String("") + formats[0] + (selectindex == 0 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
+      Paint_DrawString_EN(20, 100, (String("") + formats[1] + (selectindex == 1 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
+      Paint_DrawString_EN(20, 20, (formats[selectindex]+String("          ")).c_str(), &Font20, YELLOW, BLACK);
+      if(weightOnKeyevent(250,50)){
         keycount++;
         continue;
       }
@@ -473,13 +481,10 @@ void hx711() {
         break;
       }
       keycount =0;
-      Paint_DrawString_EN(20, 70, (String("") + formats[0] + (selectindex == 0 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
-      Paint_DrawString_EN(20, 100, (String("") + formats[1] + (selectindex == 1 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
-      Paint_DrawString_EN(20, 20, formats[selectindex], &Font20, YELLOW, BLACK);
-    }    
+    }
 
-
-    if (z2 != 0) {
+    //去皮后会出现负数
+    if (z2 > 0) {
       //保存
       long time = vm_date_util();
       long day = time / 86400;
@@ -505,8 +510,8 @@ void hx711() {
 }
 
 //判断是否进入称重状态，则停止其他传感器事件;
+int hxuistartnum= 0;
 bool checkHx711JoinHome(){
- int hxuistartnum= 0;
  if (scale.wait_ready_retry(50)) {
     long reading = scale.read();
     int z = (int)scale.get_units();
@@ -517,9 +522,13 @@ bool checkHx711JoinHome(){
       hxuistartnum = 0;
     }
   }
-  return hxuistartnum>1;
+  bool opt = hxuistartnum>1;
+  if(opt){
+     hxuistartnum= 0;
+  }
+  return opt;
 }
-bool hx711OnKeyevent(int delayms,int weightKeyValue){
+bool weightOnKeyevent(int delayms,int weightKeyValue){
   if(scale.wait_ready_retry(delayms)){
     int z = scale.get_units();
     Serial.println(z);
