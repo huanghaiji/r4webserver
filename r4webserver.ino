@@ -424,15 +424,15 @@ void hx711() {
       }
       keycount =0;
     }
-    //去皮
+    //去皮误差必须小于下个称重误差，以免造成直接跳过。
     Paint_Clear(WHITE);
-    if( weightValue()<3 ){
+    if( weightValue()<2 ){
       Paint_DrawString_EN(20,20,"preless peel",&Font20,WHITE,BLACK);
     }
     while( true){
-      if(3<weightValue()){
+      if(weightValue()<1){
         Paint_DrawString_EN(20,20,"on peel........",&Font20,WHITE,BLACK);
-        scale.tare();
+        scale.tare(250);
         break;
       }
     }
@@ -444,29 +444,36 @@ void hx711() {
     float z;
     int z2 =0;
     bool lop=true;
+    int  lopn=0;
     while(lop){
       z = weightValue();
       z2  = max(z2,z);
       Paint_DrawString_EN(50, 40, (String("weight:") + z).c_str(), &Font20, WHITE, BLACK);
       Paint_DrawString_EN(50, 70, (String("area:") + area).c_str(), &Font20, WHITE, RED);
+      Paint_DrawString_EN(50, 90, (String("weight max:") + z2).c_str(), &Font20, WHITE, RED);
       if(2<z2 && z <=2){
+        if(lopn==0){
+          continue;
+        }
         lop=false;
       }
+      lopn++;
     }
 
-    scale.tare();
+    scale.tare(250);
     Paint_Clear(WHITE);
     Paint_DrawRectangle(0, 0, LCD_HEIGHT, 60, YELLOW, DOT_PIXEL_DFT, DRAW_FILL_FULL);
     n=4;
     keycount=0;
     selectindex=0;
-    int maxselect=2;
-    const char* formats[2] = { "mixedGrains", "Applet" };
+    int maxselect=3;
+    const char* formats[3] = { "mixedGrains", "Applet","WEIGHT ERROR!" };
     const char* format = formats[selectindex];
     while (true) {
+      Paint_DrawString_EN(20, 20, (formats[selectindex]+String("          ")).c_str(), &Font20, YELLOW, BLACK);
       Paint_DrawString_EN(20, 70, (String("") + formats[0] + (selectindex == 0 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
       Paint_DrawString_EN(20, 100, (String("") + formats[1] + (selectindex == 1 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
-      Paint_DrawString_EN(20, 20, (formats[selectindex]+String("          ")).c_str(), &Font20, YELLOW, BLACK);
+      Paint_DrawString_EN(20, 120, (String("") + formats[2] + (selectindex == 2 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
       if(weightOnKeyevent(250,50)){
         keycount++;
         continue;
@@ -505,6 +512,7 @@ void hx711() {
     Paint_Clear(WHITE);
 
     isip=false;
+    scale.tare(250);
   }
   //matrix_clear();
 }
