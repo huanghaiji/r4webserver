@@ -426,15 +426,26 @@ void hx711() {
     }
     //去皮误差必须小于下个称重误差，以免造成直接跳过。
     Paint_Clear(WHITE);
-    if( weightValue()<2 ){
-      Paint_DrawString_EN(20,20,"preless peel",&Font20,WHITE,BLACK);
-    }
-    while( true){
-      if(weightValue()<1){
-        Paint_DrawString_EN(20,20,"on peel........",&Font20,WHITE,BLACK);
-        scale.tare(250);
+    Paint_DrawString_EN(20,20,"preless tare...",&Font20,WHITE,BLACK);
+    while(true){
+      float v = weightValue();
+      if(0<=v && v<1){
         break;
       }
+    }
+    while(true){
+      float v = weightValue();
+      if(1<v){
+        break;
+      }
+    }
+    for( n =0;true;n++){
+      float v = weightValue();
+      if(0<=v && v<1){
+        break;
+      }
+      Paint_DrawString_EN(20,20,(String("on tare...")+n).c_str(),&Font20,WHITE,BLACK);
+      scale.tare();
     }
 
     Paint_Clear(WHITE);
@@ -460,21 +471,21 @@ void hx711() {
       lopn++;
     }
 
-    scale.tare(250);
     Paint_Clear(WHITE);
     Paint_DrawRectangle(0, 0, LCD_HEIGHT, 60, YELLOW, DOT_PIXEL_DFT, DRAW_FILL_FULL);
     n=4;
     keycount=0;
     selectindex=0;
     int maxselect=3;
+    int clickWeight= z+50;
     const char* formats[3] = { "mixedGrains", "Applet","WEIGHT ERROR!" };
     const char* format = formats[selectindex];
+    Paint_DrawString_EN(20, 70, (String("") + formats[0] ).c_str(), &Font20, WHITE, BLACK);
+    Paint_DrawString_EN(20, 100, (String("") + formats[1]).c_str(), &Font20, WHITE, BLACK);
+    Paint_DrawString_EN(20, 120, (String("") + formats[2]).c_str(), &Font20, WHITE, BLACK);
     while (true) {
-      Paint_DrawString_EN(20, 20, (formats[selectindex]+String("          ")).c_str(), &Font20, YELLOW, BLACK);
-      Paint_DrawString_EN(20, 70, (String("") + formats[0] + (selectindex == 0 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
-      Paint_DrawString_EN(20, 100, (String("") + formats[1] + (selectindex == 1 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
-      Paint_DrawString_EN(20, 120, (String("") + formats[2] + (selectindex == 2 && keycount != 0 ? (" to " + String(keycount * 100 / n) + "%") : "         ")).c_str(), &Font20, WHITE, BLACK);
-      if(weightOnKeyevent(250,50)){
+      Paint_DrawString_EN(20, 20, (formats[selectindex]+String(" ")+String(keycount*100/n)+"%                        ").c_str(), &Font20, YELLOW, BLACK);
+      if(weightOnKeyevent(250,clickWeight)){
         keycount++;
         continue;
       }
@@ -492,6 +503,7 @@ void hx711() {
 
     //去皮后会出现负数
     if (z2 > 0) {
+      Paint_DrawString_EN(20, 20, "Save ....", &Font20, YELLOW, BLACK);
       //保存
       long time = vm_date_util();
       long day = time / 86400;
@@ -509,10 +521,9 @@ void hx711() {
       saveSeatCof();
       Serial.println((String("写入一条数据") + path).c_str());
     }
-    Paint_Clear(WHITE);
-
     isip=false;
-    scale.tare(250);
+    scale.tare(50);
+    Paint_Clear(WHITE);
   }
   //matrix_clear();
 }
@@ -548,7 +559,8 @@ bool weightOnKeyevent(int delayms,int weightKeyValue){
 }
 float weightValue(){
   scale.wait_ready_retry(250);
-  return scale.get_units();
+  float v = scale.get_units();
+  return v;
 }
 
 
