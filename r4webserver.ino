@@ -97,6 +97,7 @@ void setup() {
   aht10step();
   timeClient.begin();
   hx711Step();
+  steupRpm();
 }
 
 void loop() {
@@ -140,6 +141,7 @@ void mainUI() {
     postmess();
     matrix_clear();
   }
+  displayRpm();
 }
 
 int checkSD() {
@@ -347,6 +349,7 @@ void postmess() {
       }
     }
   }
+  postmessRpmError();
 }
 
 bool wechatPostmess(String content) {
@@ -563,6 +566,46 @@ float weightValue(){
   return v;
 }
 
+int rpm;
+int rpm2;
+int oldrpm;
+int oldrpm2;
+unsigned long rpmTime=0;
+unsigned long rpmErrorTime=0;
+//水流量
+void steupRpm(){
+  attachInterrupt(digitalPinToInterrupt(6),count,FALLING);
+  attachInterrupt(digitalPinToInterrupt(3),count2,FALLING);
+}
+void count(){
+  rpm++;
+}
+void count2(){
+  rpm2++;
+}
+void displayRpm(){
+  unsigned long t = millis();
+  if(t >= rpmTime){
+    Paint_DrawString_EN(112, 100,(String("rpm:")+(rpm/(rpmTime-t))+"  "+ (rpm2/(rpmTime-t))+"  ").c_str(), &Font20, WHITE, RED);
+    rpmTime = millis() +1000;
+    if(rpm!=0){
+      oldrpm = rpm;
+    }
+    if(rpm2!=0){
+      oldrpm2=rpm2;
+    }
+    rpm  = 0;
+    rpm2 = 0;
+  }
+}
+void postmessRpmError(){
+    if((rpm ==0 && oldrpm!=0) || (rpm2==0 && oldrpm!=0)){
+    if(millis()- rpmErrorTime >60000){
+      wechatPostmess(String("流速异常"));
+      rpmErrorTime = millis();
+    }
+  }
+}
 
 void saveSeatCof() {
   file.open("seat.cof", O_CREAT | O_WRITE);
