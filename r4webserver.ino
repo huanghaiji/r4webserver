@@ -59,6 +59,16 @@ long tempTime = 0;      //温度计时
 
 HX711 scale;
 
+int rpm;
+int rpm2;
+int oldrpm;
+int oldrpm2;
+float f_rpm;
+float f_rpm2;
+unsigned long rpmTime=0;
+unsigned long rpmOldTime=0;
+unsigned long rpmErrorTime=0;
+
 void setup() {
   char ssid[] = "appdoor3";
   char pass[] = "hhj123456";
@@ -336,6 +346,7 @@ void postmess() {
     String content = String("") + "温度:" + temperature + "℃"
                      + ",湿度:" + humidity + "%"
                      + ",最低温度:" + min_temperature + "℃"
+                     + ",流速:[" + f_rpm +","+f_rpm2+"]"
                      + ",24小时前最低温度:" + min_temperature_old24 + "℃";
     if (wechatPostmess(content)) {
       postmessTime = vm_date_util();
@@ -429,25 +440,27 @@ void hx711() {
     }
     //去皮误差必须小于下个称重误差，以免造成直接跳过。
     Paint_Clear(WHITE);
-    Paint_DrawString_EN(20,20,"preless tare...",&Font20,WHITE,BLACK);
+    Paint_DrawString_EN(20,20,"preless tare ->min",&Font20,WHITE,BLACK);
+    //去除前面重量的波动影响
     while(true){
       float v = weightValue();
-      if(0<=v && v<1){
+      if(0<=v && v<2){
         break;
       }
     }
+    Paint_DrawString_EN(20,40,"preless tare ->0", &Font20, WHITE,BLACK);
     while(true){
       float v = weightValue();
-      if(1<v){
+      if(2<v){
         break;
       }
     }
     for( n =0;true;n++){
       float v = weightValue();
-      if(0<=v && v<1){
+      if(0<=v && v<1.5){
         break;
       }
-      Paint_DrawString_EN(20,20,(String("on tare...")+n).c_str(),&Font20,WHITE,BLACK);
+      Paint_DrawString_EN(20,60,(String("on tare...")+n).c_str(),&Font20,WHITE,BLACK);
       scale.tare();
     }
 
@@ -566,12 +579,6 @@ float weightValue(){
   return v;
 }
 
-int rpm;
-int rpm2;
-int oldrpm;
-int oldrpm2;
-unsigned long rpmTime=0;
-unsigned long rpmErrorTime=0;
 //水流量
 void steupRpm(){
   attachInterrupt(digitalPinToInterrupt(6),count,FALLING);
@@ -586,8 +593,12 @@ void count2(){
 void displayRpm(){
   unsigned long t = millis();
   if(t >= rpmTime){
-    Paint_DrawString_EN(112, 100,(String("rpm:")+(rpm/(rpmTime-t))+"  "+ (rpm2/(rpmTime-t))+"  ").c_str(), &Font20, WHITE, RED);
-    rpmTime = millis() +1000;
+    f_rpm = (rpm*1000.0/(t-rpmOldTime));
+    f_rpm2= (rpm2*1000.0/(t - rpmOldTime));
+    Paint_DrawString_EN(112, 100,(String("rpm:")+f_rpm+" "+ f_rpm2).c_str(), &Font20, WHITE, RED);
+    rpmOldTime = millis();
+    rpmTime = rpmOldTime +1000;
+    saveRpm(f_rpm, f_rpm2);
     if(rpm!=0){
       oldrpm = rpm;
     }
@@ -598,6 +609,15 @@ void displayRpm(){
     rpm2 = 0;
   }
 }
+void saveRpm(float rpm1,float rpm2){
+  long time = vm_date_util();
+  long day = time / 86400;
+  String path = String("") + day + ".rpm";
+  file.open(path.c_str(), O_CREAT | O_APPEND | O_WRITE);
+  file.println((String("") + time + "," + rpm1 + "," + rpm2).c_str());
+  file.close();
+}
+
 void postmessRpmError(){
     if((rpm ==0 && oldrpm!=0) || (rpm2==0 && oldrpm!=0)){
     if(millis()- rpmErrorTime >60000){
