@@ -118,6 +118,10 @@ void loop() {
   }
 }
 
+void logState(const char* ch){
+  Paint_DrawString_EN(0,4,ch,&Font16,WHITE,RED);
+}
+
 void mainUI() {
   if ((millis() - lcdtime) > lcdtimemax) {
     runnum++;
@@ -141,20 +145,20 @@ void mainUI() {
     Paint_DrawString_EN(110, 0, WiFi.localIP().toString().c_str(), &Font20, RED, YELLOW);
     Paint_DrawString_EN(110, 20, (String("") + WiFi.SSID() + "(" + WiFi.RSSI() + ")").c_str(), &Font20, WHITE, 0xffcccccc);
 
-    matrix_1(frame);
+    logState("qr");
     qrcode();
-    matrix_2(frame);
+    logState("ah");
     aht10();
-    matrix_3(frame);
+    logState("day");
     networkDate();
-    matrix_4(frame);
+    logState("vx");
     postmess();
-    matrix_clear();
   }
   displayRpm();
 }
 
 int checkSD() {
+  logState("sd");
   // check sd
   if (!sd.begin(chipSelect, SD_SCK_MHZ(16))) {
     Paint_DrawString_EN(110, 100, "SD ERROR", &Font20, WHITE, BLACK);
@@ -591,6 +595,7 @@ void count2(){
   rpm2++;
 }
 void displayRpm(){
+  logState("rpm");
   unsigned long t = millis();
   if(t >= rpmTime){
     f_rpm = (rpm*1000.0/(t-rpmOldTime));
