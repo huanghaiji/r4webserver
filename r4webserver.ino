@@ -17,7 +17,6 @@ SdFat sd;
 SdFile file;
 
 int status = WL_IDLE_STATUS;
-// int runnum = 0;
 long lcdtime = -100000000;
 long lcdtimemax = 5000;
 WiFiServer server(80);
@@ -74,8 +73,6 @@ void setup() {
   char pass[] = "hhj123456";
 
   matrix.begin();
-  //matrix_9(frame);
-
   sd.end();
   delay(1000);
 
@@ -111,11 +108,12 @@ void setup() {
 }
 
 void loop() {
-  while (true) {
-    hx711();
-    mainUI();
-    serverpoll();
-  }
+  logState("hx");
+  hx711();
+  mainUI();
+  logState("web");
+  serverpoll();
+  logState("---");
 }
 
 void logState(const char* ch){
@@ -124,10 +122,6 @@ void logState(const char* ch){
 
 void mainUI() {
   if ((millis() - lcdtime) > lcdtimemax) {
-    // runnum++;
-    // if (runnum > 10000) {
-    //   runnum = 0;
-    // }
     long day = vm_date_util() / 86400;
     if (abs(day - oday) >= 1) {
       min_temperature_old24 = min_temperature;
@@ -154,8 +148,8 @@ void mainUI() {
     logState("vx");
     postmess();
   }
+  logState("rpm");
   displayRpm();
-  logState("---");
 }
 
 int checkSD() {
@@ -414,7 +408,6 @@ void hx711Step() {
 
 void hx711() {
  // matrix_5(frame);
-  logState("hx");
   if (checkHx711JoinHome()) {
 
     Paint_Clear(WHITE);
@@ -597,7 +590,6 @@ void count2(){
   rpm2++;
 }
 void displayRpm(){
-  logState("rpm");
   unsigned long t = millis();
   if(t >= rpmTime){
     f_rpm = (rpm*1000.0/(t-rpmOldTime));
