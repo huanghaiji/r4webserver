@@ -17,7 +17,7 @@ SdFat sd;
 SdFile file;
 
 int status = WL_IDLE_STATUS;
-int runnum = 0;
+// int runnum = 0;
 long lcdtime = -100000000;
 long lcdtimemax = 5000;
 WiFiServer server(80);
@@ -74,7 +74,7 @@ void setup() {
   char pass[] = "hhj123456";
 
   matrix.begin();
-  matrix_9(frame);
+  //matrix_9(frame);
 
   sd.end();
   delay(1000);
@@ -124,10 +124,10 @@ void logState(const char* ch){
 
 void mainUI() {
   if ((millis() - lcdtime) > lcdtimemax) {
-    runnum++;
-    if (runnum > 10000) {
-      runnum = 0;
-    }
+    // runnum++;
+    // if (runnum > 10000) {
+    //   runnum = 0;
+    // }
     long day = vm_date_util() / 86400;
     if (abs(day - oday) >= 1) {
       min_temperature_old24 = min_temperature;
@@ -140,7 +140,7 @@ void mainUI() {
     // Paint_Clear(WHITE);
     //左侧状态栏
     Paint_DrawRectangle(0, 0, 110, 21, GRAY, DOT_PIXEL_DFT, DRAW_FILL_FULL);
-    Paint_DrawString_EN(0, 4, (String(" ") + runnum).c_str(), &Font16, GRAY, RED);
+    // Paint_DrawString_EN(0, 4, (String(" ") + runnum).c_str(), &Font16, GRAY, RED);
     //
     Paint_DrawString_EN(110, 0, WiFi.localIP().toString().c_str(), &Font20, RED, YELLOW);
     Paint_DrawString_EN(110, 20, (String("") + WiFi.SSID() + "(" + WiFi.RSSI() + ")").c_str(), &Font20, WHITE, 0xffcccccc);
@@ -155,6 +155,7 @@ void mainUI() {
     postmess();
   }
   displayRpm();
+  logState("---");
 }
 
 int checkSD() {
@@ -413,6 +414,7 @@ void hx711Step() {
 
 void hx711() {
  // matrix_5(frame);
+  logState("hx");
   if (checkHx711JoinHome()) {
 
     Paint_Clear(WHITE);
