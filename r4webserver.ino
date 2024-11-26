@@ -67,6 +67,7 @@ float f_rpm2;
 unsigned long rpmTime=0;
 unsigned long rpmOldTime=0;
 unsigned long rpmErrorTime=0;
+bool rpmStart;
 
 void setup() {
   char ssid[] = "appdoor3";
@@ -579,10 +580,7 @@ float weightValue(){
 }
 
 //水流量
-void steupRpm(){
-  attachInterrupt(digitalPinToInterrupt(6),count,FALLING);
-  attachInterrupt(digitalPinToInterrupt(3),count2,FALLING);
-}
+void steupRpm(){}
 void count(){
   rpm++;
 }
@@ -590,6 +588,11 @@ void count2(){
   rpm2++;
 }
 void displayRpm(){
+  if(!rpmStart){
+    rpmStart=true;
+    attachInterrupt(digitalPinToInterrupt(6),count,FALLING);
+    attachInterrupt(digitalPinToInterrupt(3),count2,FALLING);
+  }
   unsigned long t = millis();
   if(t >= rpmTime){
     f_rpm = (rpm*1000.0/(t-rpmOldTime));
@@ -664,7 +667,7 @@ String readLine() {
 
 //全部清除lcd
 void resetlcdOntim() {
-  if (millis() - pointtim > 2000 && point >= 96) {
+  if (point >= 96 && millis() - pointtim > 2000) {
     pointtim = millis();
     point = 0;
     for (; point < 96; point++) {
