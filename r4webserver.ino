@@ -343,11 +343,12 @@ long vm_date_util() {
 //推送消息到微信,间隔600秒（10分钟）
 void postmess() {
   if ((vm_date_util() - postmessTime) >21600) {
-    String content = String("") + "温度:" + temperature + "℃"
-                     + ",湿度:" + humidity + "%"
-                     + ",最低温度:" + min_temperature + "℃"
-                     + ",流速:[" + f_rpm +","+f_rpm2+"]"
-                     + ",24小时前最低温度:" + min_temperature_old24 + "℃";
+    String content = String("") + "[" + temperature + "℃"
+                     + "," + humidity + "%]"
+                     + ",min:" + min_temperature + "℃"
+                     + ",rpm:[" + f_rpm +","+f_rpm2+"]"
+                     + ",-24min:" + min_temperature_old24 + "℃"
+                     + ",min当天最小温度,rpm:水流速度,-24min:24小时前最低温度";
     if (wechatPostmess(content)) {
       postmessTime = vm_date_util();
     }
