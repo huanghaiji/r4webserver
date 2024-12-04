@@ -355,7 +355,7 @@ void postmess() {
   }
   long day = vm_date_util() / 86400;
   if (day - sday > 2) {
-    if (uday - day >= 1) {
+    if (uday - day >0) {
       if (wechatPostmess(String("喂食超过") + (day - sday) + " 天")) {
         uday = day;
       }
@@ -622,9 +622,9 @@ void saveRpm(float rpm1,float rpm2){
 }
 
 void postmessRpmError(){
-    if((rpm ==0 && oldrpm!=0) || (rpm2==0 && oldrpm!=0)){
+    if((rpm ==0 && oldrpm!=0) || (rpm2==0 && oldrpm2!=0)){
     if(millis()- rpmErrorTime >60000){
-      wechatPostmess(String("流速异常"));
+      wechatPostmess(String("流速异常:")+rpm+"("+oldrpm+") / "+rpm2+"("+oldrpm2+")");
       rpmErrorTime = millis();
     }
   }
