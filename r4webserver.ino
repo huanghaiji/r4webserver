@@ -19,9 +19,10 @@ SdFile file;
 int status = WL_IDLE_STATUS;
 long lcdtime = -100000000;
 long lcdtimemax = 5000;
-WiFiServer server(80);
+// WiFiServer server(80);
+// bool serveronbegin = false;
 bool isip = false;
-bool serveronbegin = false;
+
 
 uint8_t frame[8][12] = {
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -67,14 +68,13 @@ float f_rpm2;
 unsigned long rpmTime=0;
 unsigned long rpmOldTime=0;
 unsigned long rpmErrorTime=0;
-bool rpmStart;
+
+const char ssid[] = "appdoor3";
+const char pass[] = "hhj123456";
 
 void setup() {
-  char ssid[] = "appdoor3";
-  char pass[] = "hhj123456";
-
   matrix.begin();
-  sd.end();
+  //sd.end();
   delay(1000);
 
   Config_Init();
@@ -86,6 +86,7 @@ void setup() {
   Serial.begin(9600);
 
   delay(2000);
+  steupRpm();
   checkSD();
 
   // check for the WiFi module:
@@ -105,7 +106,6 @@ void setup() {
   aht10step();
   timeClient.begin();
   hx711Step();
-  steupRpm();
 }
 
 void loop() {
@@ -113,12 +113,26 @@ void loop() {
   hx711();
   mainUI();
   logState("web");
-  serverpoll();
+  // serverpoll();
   logState("---");
+  delay(64);
 }
 
 void logState(const char* ch){
   Paint_DrawString_EN(0,4,ch,&Font16,WHITE,RED);
+}
+
+//检查WiFi是否正常.
+void checkWifi(){
+  if(WiFi.localIP().toString().equals("0.0.0.0")){
+    // attempt to connect to WiFi network:
+    while (status != WL_CONNECTED) {
+      Paint_DrawString_EN(0, 0, (String("connect network,") + (millis() / 1000)).c_str(), &Font20, RED, YELLOW);
+      Serial.println(ssid);
+      status = WiFi.begin(ssid, pass);
+      delay(3000);
+    }
+  }
 }
 
 void mainUI() {
@@ -156,8 +170,14 @@ void mainUI() {
 int checkSD() {
   logState("sd");
   // check sd
-  if (!sd.begin(chipSelect, SD_SCK_MHZ(16))) {
-    Paint_DrawString_EN(110, 100, "SD ERROR", &Font20, WHITE, BLACK);
+  int ei=0,ex=3;
+  for(;ei<ex;ei++){
+    if (!sd.begin(chipSelect, SD_SCK_MHZ(16))) {
+      sd.end();
+      Paint_DrawString_EN(110, 100, (String("SD ERROR")+ei).c_str(), &Font20, WHITE, BLACK);
+    }
+  }
+  if(ex<=ei){
     return 0;
   }
   Paint_DrawString_EN(110, 100, "           ", &Font20, WHITE, BLACK);
@@ -207,113 +227,113 @@ void aht10() {
 }
 
 //网站server
-void serverpoll() {
-  resetlcdOntim();
-  if (!serveronbegin) {
-    serveronbegin = true;
-    server.begin();
-  }
-  // server.begin();
-  WiFiClient client = server.available();  // listen for incoming clients
-  if (client) {
-    Serial.println("new client");
-    String currentLine = "";
-    uint8_t buf[1024];
-    size_t c;
-    while (client.connected()) {
-      if (client.available()) {
-        c = client.read(buf, 1024);
-        currentLine += String(buf, c);
-      }
-      if (currentLine.endsWith("\r\n\r\n")) {
-        Serial.println(currentLine);
-        int si = currentLine.indexOf("GET /") + 5;
-        int ei = currentLine.indexOf(" ", si);
-        int mi = currentLine.indexOf("?", si);
-        String path = currentLine.substring(si, mi == -1 ? ei : mi);
-        url.urlcode = path;
-        url.urldecode();
-        path = url.strcode;
-        url.release();
-        Serial.println("tf请求路径:" + path + " \|");
-        Paint_DrawString_EN(0, 154, "run web", &Font16, RED, YELLOW);
-        if (file.open(path.c_str(), O_RDONLY)) {
-          const int bufsize = 10240;
-          uint8_t buf[bufsize];
-          unsigned long fsize = file.size();
-          unsigned long fnum = 0;
-          Serial.print("文件长度:");
-          Serial.println(fsize);
-          if (path.endsWith(".js")) {
-            client.println("HTTP/1.1 200");
-            client.println("Content-Type: application/x-javascript");
-            client.println();
-          }
-          while ((c = file.read(buf, bufsize)) > 0) {
-            fnum += c;
-            client.write(buf, c);
-            processlcd(fnum * 1.0 / fsize);
-          }
-          file.close();
-        } else if (path == "resetsd") {
-          client.write((checkSD() == 0 ? "SD ERROR" : "SD SUCCESS"));
-        } else if (!checkSD()) {
-          client.write("<a href=\"/resetsd\">SD Error </a>");
-        } else if (path == "resetdate") {  //更新世界时间
-          timeClient.end();
-          timeClient.begin();
-          client.write("ok");
-          client.write(vm_date_util());
-        }
-        Paint_DrawString_EN(0, 154, "end web", &Font16, BLACK, YELLOW);
-        break;
-      }
-    }
-    // close the connection:
-    client.stop();
-    Serial.println("client disconnected");
-  }
+// void serverpoll() {
+//   resetlcdOntim();
+//   if (!serveronbegin) {
+//     serveronbegin = true;
+//     server.begin();
+//   }
+//   // server.begin();
+//   WiFiClient client = server.available();  // listen for incoming clients
+//   if (client) {
+//     Serial.println("new client");
+//     String currentLine = "";
+//     uint8_t buf[1024];
+//     size_t c;
+//     while (client.connected()) {
+//       if (client.available()) {
+//         c = client.read(buf, 1024);
+//         currentLine += String(buf, c);
+//       }
+//       if (currentLine.endsWith("\r\n\r\n")) {
+//         Serial.println(currentLine);
+//         int si = currentLine.indexOf("GET /") + 5;
+//         int ei = currentLine.indexOf(" ", si);
+//         int mi = currentLine.indexOf("?", si);
+//         String path = currentLine.substring(si, mi == -1 ? ei : mi);
+//         url.urlcode = path;
+//         url.urldecode();
+//         path = url.strcode;
+//         url.release();
+//         Serial.println("tf请求路径:" + path + " \|");
+//         Paint_DrawString_EN(0, 154, "run web", &Font16, RED, YELLOW);
+//         if (file.open(path.c_str(), O_RDONLY)) {
+//           const int bufsize = 10240;
+//           uint8_t buf[bufsize];
+//           unsigned long fsize = file.size();
+//           unsigned long fnum = 0;
+//           Serial.print("文件长度:");
+//           Serial.println(fsize);
+//           if (path.endsWith(".js")) {
+//             client.println("HTTP/1.1 200");
+//             client.println("Content-Type: application/x-javascript");
+//             client.println();
+//           }
+//           while ((c = file.read(buf, bufsize)) > 0) {
+//             fnum += c;
+//             client.write(buf, c);
+//             processlcd(fnum * 1.0 / fsize);
+//           }
+//           file.close();
+//         } else if (path == "resetsd") {
+//           client.write((checkSD() == 0 ? "SD ERROR" : "SD SUCCESS"));
+//         } else if (!checkSD()) {
+//           client.write("<a href=\"/resetsd\">SD Error </a>");
+//         } else if (path == "resetdate") {  //更新世界时间
+//           timeClient.end();
+//           timeClient.begin();
+//           client.write("ok");
+//           client.write(vm_date_util());
+//         }
+//         Paint_DrawString_EN(0, 154, "end web", &Font16, BLACK, YELLOW);
+//         break;
+//       }
+//     }
+//     // close the connection:
+//     client.stop();
+//     Serial.println("client disconnected");
+//   }
 
-  delay(64);
-}
+// }
 
 //中国天气气象局
-void weaterNow(WiFiClient phone) {
-  Serial.println("获取气象数据中");
-  WiFiClient client;
-  char host[] = "weather.cma.cn";
-  if (client.connect(host, 80)) {
-    client.println("GET /api/now/59287 HTTP/1.1");
-    client.print("Host:");
-    client.println(host);
-    client.println("Connection: close");
-    client.println();
-  } else {
-    Serial.println("<<<<<<-连接失败->>>>>");
-    client.stop();
-    return;
-  }
-  unsigned long timeout = millis();
-  while (client.available() == 0) {
-    if (millis() - timeout > 50000) {
-      Serial.println("客户端超时");
-      client.stop();
-      break;
-    }
-  }
-  while (client.available()) {
-    String line = client.readStringUntil('\r');
-    Serial.println("数据回应:" + line);
-    phone.println(line);
-  }
+// void weaterNow(WiFiClient phone) {
+//   Serial.println("获取气象数据中");
+//   WiFiClient client;
+//   char host[] = "weather.cma.cn";
+//   if (client.connect(host, 80)) {
+//     client.println("GET /api/now/59287 HTTP/1.1");
+//     client.print("Host:");
+//     client.println(host);
+//     client.println("Connection: close");
+//     client.println();
+//   } else {
+//     Serial.println("<<<<<<-连接失败->>>>>");
+//     client.stop();
+//     return;
+//   }
+//   unsigned long timeout = millis();
+//   while (client.available() == 0) {
+//     if (millis() - timeout > 50000) {
+//       Serial.println("客户端超时");
+//       client.stop();
+//       break;
+//     }
+//   }
+//   while (client.available()) {
+//     String line = client.readStringUntil('\r');
+//     Serial.println("数据回应:" + line);
+//     phone.println(line);
+//   }
 
-  Serial.println();
-  Serial.println("关闭链接");
-  client.stop();
-}
+//   Serial.println();
+//   Serial.println("关闭链接");
+//   client.stop();
+// }
 
 //同步世界时间
 void networkDate() {
+  checkWifi();
   if (millis() - datemillis > timeClientLockMaxTim) {
     timeClient.end();
     timeClient.begin();
@@ -365,6 +385,7 @@ void postmess() {
 }
 
 bool wechatPostmess(String content) {
+  checkWifi();
   bool isok = false;
   Paint_DrawString_EN(0, LCD_WIDTH - 21, "VX", &Font20, WHITE, BLACK);
   WiFiSSLClient client;
@@ -441,12 +462,14 @@ void hx711() {
     }
     //去皮误差必须小于下个称重误差，以免造成直接跳过。
     Paint_Clear(WHITE);
-    Paint_DrawString_EN(20,20,"preless tare ->min",&Font20,WHITE,BLACK);
+    Paint_DrawString_EN(20,20,"preless tare ->min & >=0",&Font20,WHITE,BLACK);
     //去除前面重量的波动影响
     while(true){
       float v = weightValue();
       if(0<=v && v<2){
         break;
+      }else if(v<0){
+        scale.tare(20);
       }
     }
     Paint_DrawString_EN(20,40,"preless tare ->0", &Font20, WHITE,BLACK);
@@ -581,7 +604,10 @@ float weightValue(){
 }
 
 //水流量
-void steupRpm(){}
+void steupRpm(){
+    attachInterrupt(digitalPinToInterrupt(6),count,FALLING);
+    attachInterrupt(digitalPinToInterrupt(3),count2,FALLING);
+}
 void count(){
   rpm++;
 }
@@ -589,11 +615,6 @@ void count2(){
   rpm2++;
 }
 void displayRpm(){
-  if(!rpmStart){
-    rpmStart=true;
-    attachInterrupt(digitalPinToInterrupt(6),count,FALLING);
-    attachInterrupt(digitalPinToInterrupt(3),count2,FALLING);
-  }
   unsigned long t = millis();
   if(t >= rpmTime){
     f_rpm = (rpm*1000.0/(t-rpmOldTime));
@@ -624,7 +645,7 @@ void saveRpm(float rpm1,float rpm2){
 void postmessRpmError(){
     if((rpm ==0 && oldrpm!=0) || (rpm2==0 && oldrpm2!=0)){
     if(millis()- rpmErrorTime >60000){
-      wechatPostmess(String("流速异常:")+rpm+"("+oldrpm+") / "+rpm2+"("+oldrpm2+")");
+      wechatPostmess(String("流速异常:[1]")+rpm+"("+oldrpm+") / [2]"+rpm2+"("+oldrpm2+")。备注：当前流速（上次流速）");
       rpmErrorTime = millis();
     }
   }
@@ -703,151 +724,151 @@ void matrix_clear(uint8_t frame[8][12]){
   }
 }
 //lcd显示1，以此类推
-void matrix_1(uint8_t frame[8][12]) {
-  matrix_clear(frame);
-  frame[1][5] = 1;
-  frame[2][5] = 1;
-  frame[3][5] = 1;
-  frame[4][5] = 1;
-  frame[5][5] = 1;
-  frame[6][5] = 1;
-  matrix.renderBitmap(frame, 8, 12);
-}
-void matrix_2(uint8_t frame[8][12]) {
-  matrix_clear(frame);
-  frame[1][3] = 1;
-  frame[1][4] = 1;
-  frame[1][5] = 1;
-  frame[1][6] = 1;
-  frame[2][6] = 1;
-  frame[3][3] = 1;
-  frame[3][4] = 1;
-  frame[3][5] = 1;
-  frame[3][6] = 1;
-  frame[4][3] = 1;
-  frame[5][3] = 1;
-  frame[5][4] = 1;
-  frame[5][5] = 1;
-  frame[5][6] = 1;
-  matrix.renderBitmap(frame, 8, 12);
-}
-void matrix_3(uint8_t frame[8][12]) {
-  matrix_clear(frame);
-  frame[1][3] = 1;
-  frame[1][4] = 1;
-  frame[1][5] = 1;
-  frame[1][6] = 1;
-  frame[2][6] = 1;
-  frame[3][3] = 1;
-  frame[3][4] = 1;
-  frame[3][5] = 1;
-  frame[3][6] = 1;
-  frame[4][6] = 1;
-  frame[5][3] = 1;
-  frame[5][4] = 1;
-  frame[5][5] = 1;
-  frame[5][6] = 1;
-  matrix.renderBitmap(frame, 8, 12);
-}
-void matrix_4(uint8_t frame[8][12]) {
-  matrix_clear(frame);
-  frame[1][3] = 1;
-  frame[1][6] = 1;
-  frame[2][3] = 1;
-  frame[2][6] = 1;
-  frame[3][3] = 1;
-  frame[3][4] = 1;
-  frame[3][5] = 1;
-  frame[3][6] = 1;
-  frame[4][6] = 1;
-  frame[5][6] = 1;
-  matrix.renderBitmap(frame, 8, 12);
-}
-void matrix_5(uint8_t frame[8][12]) {
-  matrix_clear(frame);
-  frame[1][3] = 1;
-  frame[1][4] = 1;
-  frame[1][5] = 1;
-  frame[1][6] = 1;
-  frame[2][3] = 1;
-  frame[3][3] = 1;
-  frame[3][4] = 1;
-  frame[3][5] = 1;
-  frame[3][6] = 1;
-  frame[4][6] = 1;
-  frame[5][3] = 1;
-  frame[5][4] = 1;
-  frame[5][5] = 1;
-  frame[5][6] = 1;
-  matrix.renderBitmap(frame, 8, 12);
-}
-void matrix_6(uint8_t frame[8][12]) {
-  matrix_clear(frame);
-  frame[1][3] = 1;
-  frame[1][4] = 1;
-  frame[1][5] = 1;
-  frame[1][6] = 1;
-  frame[2][3] = 1;
-  frame[3][3] = 1;
-  frame[3][4] = 1;
-  frame[3][5] = 1;
-  frame[3][6] = 1;
-  frame[4][3] = 1;
-  frame[4][6] = 1;
-  frame[5][3] = 1;
-  frame[5][4] = 1;
-  frame[5][5] = 1;
-  frame[5][6] = 1;
-  matrix.renderBitmap(frame, 8, 12);
-}
-void matrix_7(uint8_t frame[8][12]) {
-  matrix_clear(frame);
-  frame[1][3] = 1;
-  frame[1][4] = 1;
-  frame[1][5] = 1;
-  frame[1][6] = 1;
-  frame[2][6] = 1;
-  frame[3][6] = 1;
-  frame[4][6] = 1;
-  frame[5][6] = 1;
-  matrix.renderBitmap(frame, 8, 12);
-}
-void matrix_8(uint8_t frame[8][12]) {
-  matrix_clear(frame);
-  frame[1][3] = 1;
-  frame[1][4] = 1;
-  frame[1][5] = 1;
-  frame[1][6] = 1;
-  frame[2][3] = 1;
-  frame[2][6] = 1;
-  frame[3][3] = 1;
-  frame[3][4] = 1;
-  frame[3][5] = 1;
-  frame[3][6] = 1;
-  frame[4][3] = 1;
-  frame[4][6] = 1;
-  frame[5][3] = 1;
-  frame[5][4] = 1;
-  frame[5][5] = 1;
-  frame[5][6] = 1;
-  matrix.renderBitmap(frame, 8, 12);
-}
-void matrix_9(uint8_t frame[8][12]) {
-  matrix_clear(frame);
-  frame[1][3] = 1;
-  frame[1][4] = 1;
-  frame[1][5] = 1;
-  frame[1][6] = 1;
-  frame[2][3] = 1;
-  frame[2][6] = 1;
-  frame[3][3] = 1;
-  frame[3][4] = 1;
-  frame[3][5] = 1;
-  frame[3][6] = 1;
-  frame[4][6] = 1;
-  frame[5][3] = 1;
-  frame[5][4] = 1;
-  frame[5][5] = 1;
-  frame[5][6] = 1;
-  matrix.renderBitmap(frame, 8, 12);
-}
+// void matrix_1(uint8_t frame[8][12]) {
+//   matrix_clear(frame);
+//   frame[1][5] = 1;
+//   frame[2][5] = 1;
+//   frame[3][5] = 1;
+//   frame[4][5] = 1;
+//   frame[5][5] = 1;
+//   frame[6][5] = 1;
+//   matrix.renderBitmap(frame, 8, 12);
+// }
+// void matrix_2(uint8_t frame[8][12]) {
+//   matrix_clear(frame);
+//   frame[1][3] = 1;
+//   frame[1][4] = 1;
+//   frame[1][5] = 1;
+//   frame[1][6] = 1;
+//   frame[2][6] = 1;
+//   frame[3][3] = 1;
+//   frame[3][4] = 1;
+//   frame[3][5] = 1;
+//   frame[3][6] = 1;
+//   frame[4][3] = 1;
+//   frame[5][3] = 1;
+//   frame[5][4] = 1;
+//   frame[5][5] = 1;
+//   frame[5][6] = 1;
+//   matrix.renderBitmap(frame, 8, 12);
+// }
+// void matrix_3(uint8_t frame[8][12]) {
+//   matrix_clear(frame);
+//   frame[1][3] = 1;
+//   frame[1][4] = 1;
+//   frame[1][5] = 1;
+//   frame[1][6] = 1;
+//   frame[2][6] = 1;
+//   frame[3][3] = 1;
+//   frame[3][4] = 1;
+//   frame[3][5] = 1;
+//   frame[3][6] = 1;
+//   frame[4][6] = 1;
+//   frame[5][3] = 1;
+//   frame[5][4] = 1;
+//   frame[5][5] = 1;
+//   frame[5][6] = 1;
+//   matrix.renderBitmap(frame, 8, 12);
+// }
+// void matrix_4(uint8_t frame[8][12]) {
+//   matrix_clear(frame);
+//   frame[1][3] = 1;
+//   frame[1][6] = 1;
+//   frame[2][3] = 1;
+//   frame[2][6] = 1;
+//   frame[3][3] = 1;
+//   frame[3][4] = 1;
+//   frame[3][5] = 1;
+//   frame[3][6] = 1;
+//   frame[4][6] = 1;
+//   frame[5][6] = 1;
+//   matrix.renderBitmap(frame, 8, 12);
+// }
+// void matrix_5(uint8_t frame[8][12]) {
+//   matrix_clear(frame);
+//   frame[1][3] = 1;
+//   frame[1][4] = 1;
+//   frame[1][5] = 1;
+//   frame[1][6] = 1;
+//   frame[2][3] = 1;
+//   frame[3][3] = 1;
+//   frame[3][4] = 1;
+//   frame[3][5] = 1;
+//   frame[3][6] = 1;
+//   frame[4][6] = 1;
+//   frame[5][3] = 1;
+//   frame[5][4] = 1;
+//   frame[5][5] = 1;
+//   frame[5][6] = 1;
+//   matrix.renderBitmap(frame, 8, 12);
+// }
+// void matrix_6(uint8_t frame[8][12]) {
+//   matrix_clear(frame);
+//   frame[1][3] = 1;
+//   frame[1][4] = 1;
+//   frame[1][5] = 1;
+//   frame[1][6] = 1;
+//   frame[2][3] = 1;
+//   frame[3][3] = 1;
+//   frame[3][4] = 1;
+//   frame[3][5] = 1;
+//   frame[3][6] = 1;
+//   frame[4][3] = 1;
+//   frame[4][6] = 1;
+//   frame[5][3] = 1;
+//   frame[5][4] = 1;
+//   frame[5][5] = 1;
+//   frame[5][6] = 1;
+//   matrix.renderBitmap(frame, 8, 12);
+// }
+// void matrix_7(uint8_t frame[8][12]) {
+//   matrix_clear(frame);
+//   frame[1][3] = 1;
+//   frame[1][4] = 1;
+//   frame[1][5] = 1;
+//   frame[1][6] = 1;
+//   frame[2][6] = 1;
+//   frame[3][6] = 1;
+//   frame[4][6] = 1;
+//   frame[5][6] = 1;
+//   matrix.renderBitmap(frame, 8, 12);
+// }
+// void matrix_8(uint8_t frame[8][12]) {
+//   matrix_clear(frame);
+//   frame[1][3] = 1;
+//   frame[1][4] = 1;
+//   frame[1][5] = 1;
+//   frame[1][6] = 1;
+//   frame[2][3] = 1;
+//   frame[2][6] = 1;
+//   frame[3][3] = 1;
+//   frame[3][4] = 1;
+//   frame[3][5] = 1;
+//   frame[3][6] = 1;
+//   frame[4][3] = 1;
+//   frame[4][6] = 1;
+//   frame[5][3] = 1;
+//   frame[5][4] = 1;
+//   frame[5][5] = 1;
+//   frame[5][6] = 1;
+//   matrix.renderBitmap(frame, 8, 12);
+// }
+// void matrix_9(uint8_t frame[8][12]) {
+//   matrix_clear(frame);
+//   frame[1][3] = 1;
+//   frame[1][4] = 1;
+//   frame[1][5] = 1;
+//   frame[1][6] = 1;
+//   frame[2][3] = 1;
+//   frame[2][6] = 1;
+//   frame[3][3] = 1;
+//   frame[3][4] = 1;
+//   frame[3][5] = 1;
+//   frame[3][6] = 1;
+//   frame[4][6] = 1;
+//   frame[5][3] = 1;
+//   frame[5][4] = 1;
+//   frame[5][5] = 1;
+//   frame[5][6] = 1;
+//   matrix.renderBitmap(frame, 8, 12);
+// }
