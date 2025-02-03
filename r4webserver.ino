@@ -61,6 +61,8 @@ HX711 scale;
 
 int rpm;
 int rpm2;
+int maxRpm;
+int maxRpm2;
 int oldrpm;
 int oldrpm2;
 float f_rpm;
@@ -128,9 +130,8 @@ void checkWifi(){
     // attempt to connect to WiFi network:
     while (status != WL_CONNECTED) {
       Paint_DrawString_EN(0, 0, (String("connect network,") + (millis() / 1000)).c_str(), &Font20, RED, YELLOW);
-      Serial.println(ssid);
       status = WiFi.begin(ssid, pass);
-      delay(3000);
+      delay(6000);
     }
   }
 }
@@ -336,6 +337,7 @@ void networkDate() {
   checkWifi();
   if (millis() - datemillis > timeClientLockMaxTim) {
     timeClient.end();
+    timeClient =NTPClient(ntpUDP, "pool.ntp.org", 8 * 3600, timeClientLockTim);  // 设定NTP服务器，同步间隔（60秒）
     timeClient.begin();
     Serial.println((String("同步世界时间失败") + vm_date_util()).c_str());
   }
@@ -363,12 +365,9 @@ long vm_date_util() {
 //推送消息到微信,间隔600秒（10分钟）
 void postmess() {
   if ((vm_date_util() - postmessTime) >21600) {
-    String content = String("") + "[" + temperature + "℃"
-                     + "," + humidity + "%]"
-                     + ",min:" + min_temperature + "℃"
+    String content = String("") + "[" + temperature + "℃," + humidity + "%, "+min_temperature+"℃, "+min_temperature_old24+"℃]"
                      + ",rpm:[" + f_rpm +","+f_rpm2+"]"
-                     + ",-24min:" + min_temperature_old24 + "℃"
-                     + ",min当天最小温度,rpm:水流速度,-24min:24小时前最低温度";
+                     + ",rpm:[" + (f_rpm*1.0/maxRpm)+","+(f_rpm2*1.0/maxRpm2)+"]";
     if (wechatPostmess(content)) {
       postmessTime = vm_date_util();
     }
@@ -629,6 +628,8 @@ void displayRpm(){
     if(rpm2!=0){
       oldrpm2=rpm2;
     }
+    maxRpm= max(maxRpm,f_rpm);
+    maxRpm2=max(maxRpm2,f_rpm2);
     rpm  = 0;
     rpm2 = 0;
   }
@@ -643,12 +644,12 @@ void saveRpm(float rpm1,float rpm2){
 }
 
 void postmessRpmError(){
-    if((rpm ==0 && oldrpm!=0) || (rpm2==0 && oldrpm2!=0)){
-    if(millis()- rpmErrorTime >60000){
-      wechatPostmess(String("流速异常:[1]")+rpm+"("+oldrpm+") / [2]"+rpm2+"("+oldrpm2+")。备注：当前流速（上次流速）");
-      rpmErrorTime = millis();
-    }
-  }
+  // if((rpm ==0 && oldrpm!=0) || (rpm2==0 && oldrpm2!=0)){
+  //   if(millis()- rpmErrorTime >60000){
+  //     wechatPostmess(String("流速异常:[1]")+rpm+"("+oldrpm+") / [2]"+rpm2+"("+oldrpm2+")。备注：当前流速（上次流速）");
+  //     rpmErrorTime = millis();
+  //   }
+  // }
 }
 
 void saveSeatCof() {
